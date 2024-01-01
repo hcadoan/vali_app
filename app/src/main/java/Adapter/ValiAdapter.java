@@ -121,15 +121,28 @@ public class ValiAdapter extends RecyclerView.Adapter<ValiAdapter.ViewHolder> {
 
             tvLatitude.setText(vali.getLatitude());
             tvLongitude.setText(vali.getLongitude());
-            tvDistance.setText(String.valueOf(vali.getDistance()));
+            tvDistance.setText(vali.getDistance());
 
+            String latitude = vali.getLatitude();
+            String longitude = vali.getLongitude();
+
+            // Kiểm tra nếu latitude và longitude không phải là null và không rỗng thì mở khóa nút
+            if (latitude != null && longitude != null && !latitude.isEmpty() && !longitude.isEmpty()) {
+                locateButton.setEnabled(true);
+                locateButton.setBackgroundResource(R.drawable.bg_icon_1);
+            } else {
+                locateButton.setEnabled(false);
+                locateButton.setBackgroundResource(R.drawable.bg_icon_1_off);
+            }
             locateButton.setOnClickListener(new View.OnClickListener() {
                 @Override
                 public void onClick(View view) {
                     // Xử lý khi nút Định vị được nhấn
                     String vali_id = vali.get_id();
                     String name = vali.getName();
-                    double distance = vali.getDistance();
+                    String distance = vali.getDistance();
+                    String dmsLatitude = vali.getLatitude();
+                    String dmsLongitude = vali.getLongitude();
                     //api
                     retrofitServer = new RetrofitServer();
                     retrofitInterface = retrofitServer.Retrofit();
@@ -155,6 +168,8 @@ public class ValiAdapter extends RecyclerView.Adapter<ValiAdapter.ViewHolder> {
                                     Intent intent = new Intent(context, MapsActivity.class);
                                     intent.putExtra("latitude", latitude);
                                     intent.putExtra("longitude", longitude);
+                                    intent.putExtra("dmslatitude", dmsLatitude);
+                                    intent.putExtra("dmslongitude", dmsLongitude);
                                     intent.putExtra("valiId", vali_id);
                                     intent.putExtra("valiName", name);
                                     intent.putExtra("valiDistance", distance);

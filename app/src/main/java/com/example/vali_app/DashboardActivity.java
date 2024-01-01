@@ -39,9 +39,12 @@ import com.google.gson.JsonObject;
 import org.json.JSONObject;
 
 import java.io.IOException;
+import java.text.DecimalFormat;
+import java.text.DecimalFormatSymbols;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
+import java.util.Locale;
 
 import API.ResponseResult;
 import API.RetrofitInterface;
@@ -187,8 +190,9 @@ public class DashboardActivity extends AppCompatActivity implements ValiAdapter.
                 editor.apply();
 
                 Intent intent = new Intent(DashboardActivity.this, MainActivity.class);
+                intent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TASK);
                 startActivity(intent);
-                dialog.dismiss();
+                finish(); // Finish the current activity
             }
         });
 
@@ -238,17 +242,35 @@ public class DashboardActivity extends AppCompatActivity implements ValiAdapter.
                             double latitude = jsonObject.optDouble("latitude", 0.0);
                             double longitude = jsonObject.optDouble("longitude", 0.0);
 
+                            String dmsLatitude = convertToDMS(latitude, true);
+                            String dmsLongitude = convertToDMS(longitude, false);
+
                             // Find the ValiResult object in the list based on suitcaseId
                             ValiResult matchedVali = findValiResultBySuitcaseId(suitcaseId);
 
                             if (matchedVali != null) {
                                 // Update the specific ValiResult object with real-time data
-                                matchedVali.setLatitude(String.valueOf(latitude));
-                                matchedVali.setLongitude(String.valueOf(longitude));
+                                matchedVali.setLatitude(dmsLatitude);
+                                matchedVali.setLongitude(dmsLongitude);
+                                Double distance;
+                                String distanceUnit;
+                                if(currentLocation != null) {
+                                    distance = calculateDistance(currentLocation.getLatitude(), currentLocation.getLongitude(), latitude, longitude);
+                                    if (distance >= 1) {
+                                        // Khi khoảng cách lớn hơn hoặc bằng 1 km, hiển thị trong đơn vị ki-lô-mét
+                                        distanceUnit = " km";
+                                    } else {
+                                        // Khi khoảng cách nhỏ hơn 1 km, hiển thị trong đơn vị mét
+                                        distanceUnit = " m";
+                                        distance = distance * 1000;
+                                    }
+                                } else {
+                                    distance = 0.0;
+                                    distanceUnit = " km";
+                                }
 
-                                double distance = calculateDistance(currentLocation.getLatitude(), currentLocation.getLongitude(), latitude, longitude);
-                                int roundedDistance = (int) Math.round(distance);
-                                matchedVali.setDistance(roundedDistance);
+                                String formattedDistance = String.format(Locale.US, "%.2f%s", distance, distanceUnit);
+                                matchedVali.setDistance(formattedDistance);
 
                                 // Notify the adapter of the specific item change
                                 int updatedIndex = valiList.indexOf(matchedVali);
@@ -267,6 +289,24 @@ public class DashboardActivity extends AppCompatActivity implements ValiAdapter.
         });
     }
 
+    private static String convertToDMS(double coordinate, boolean isLatitude) {
+        char direction = isLatitude ? (coordinate >= 0 ? 'N' : 'S') : (coordinate >= 0 ? 'E' : 'W');
+        coordinate = Math.abs(coordinate);
+
+        int degrees = (int) coordinate;
+        double minutesAndSeconds = (coordinate - degrees) * 60;
+
+        int minutes = (int) minutesAndSeconds;
+        double seconds = (minutesAndSeconds - minutes) * 60;
+
+        DecimalFormatSymbols symbols = new DecimalFormatSymbols(Locale.US);
+        DecimalFormat decimalFormat = new DecimalFormat("00.000", symbols);
+
+        String formattedSeconds = decimalFormat.format(seconds);
+
+        return String.format("%d°%02d'%s\"%s", degrees, minutes, formattedSeconds, direction);
+    }
+
     private void fetchCoordinatesAndUpdate(final ValiResult vali) {
         Call<JsonArray> call = retrofitInterface.GetCoordinates("Bearer " + token, vali.get_id());
         call.enqueue(new Callback<JsonArray>() {
@@ -279,10 +319,29 @@ public class DashboardActivity extends AppCompatActivity implements ValiAdapter.
                         Double latitude = lastObject.get("latitude").getAsDouble();
                         Double longitude = lastObject.get("longitude").getAsDouble();
 
-                        Double distance = calculateDistance(currentLocation.getLatitude(), currentLocation.getLongitude(), latitude, longitude);
+                        String dmsLatitude = convertToDMS(latitude, true);
+                        String dmsLongitude = convertToDMS(longitude, false);
+
+                        Double distance;
+                        String distanceUnit;
+
+                        if(currentLocation != null) {
+                            distance = calculateDistance(currentLocation.getLatitude(), currentLocation.getLongitude(), latitude, longitude);
+                            if (distance >= 1) {
+                                // Khi khoảng cách lớn hơn hoặc bằng 1 km, hiển thị trong đơn vị ki-lô-mét
+                                distanceUnit = " km";
+                            } else {
+                                // Khi khoảng cách nhỏ hơn 1 km, hiển thị trong đơn vị mét
+                                distanceUnit = " m";
+                                distance = distance * 1000;
+                            }
+                        } else {
+                            distance = 0.0;
+                            distanceUnit = " km";
+                        }
 
                         // Update the ValiResult object in the valiList
-                        updateValiCoordinates(vali, latitude, longitude, distance);
+                        updateValiCoordinates(vali, dmsLatitude, dmsLongitude, distance, distanceUnit);
                     }
                 } else {
                     try {
@@ -305,12 +364,12 @@ public class DashboardActivity extends AppCompatActivity implements ValiAdapter.
         });
     }
 
-    private void updateValiCoordinates(ValiResult vali, Double latitude, Double longitude, Double distance) {
+    private void updateValiCoordinates(ValiResult vali, String latitude, String longitude, Double distance, String distanceUnit) {
         // Update latitude and longitude for the ValiResult object
-        vali.setLatitude(String.valueOf(latitude));
-        vali.setLongitude(String.valueOf(longitude));
-        int roundedDistance = (int) Math.round(distance);
-        vali.setDistance(roundedDistance);
+        vali.setLatitude(latitude);
+        vali.setLongitude(longitude);
+        String formattedDistance = String.format(Locale.US, "%.2f%s", distance, distanceUnit);
+        vali.setDistance(formattedDistance);
 
         // Notify the adapter of the specific item change
         int updatedIndex = valiList.indexOf(vali);
@@ -487,25 +546,31 @@ public class DashboardActivity extends AppCompatActivity implements ValiAdapter.
             public void onSuccess(Location location) {
                 if(location != null) {
                     currentLocation = location;
+                    LoadListVali();
                 }
             }
         });
     }
 
     private double calculateDistance(double lat1, double lon1, double lat2, double lon2) {
-        // Haversine formula for distance calculation
-        double R = 6371; // Radius of the Earth in kilometers
-        double dLat = Math.toRadians(lat2 - lat1);
-        double dLon = Math.toRadians(lon2 - lon1);
+        if (currentLocation == null) {
+            // Handle the case where currentLocation is null
+            return 0.0; // or any default value
+        } else {
+            // Haversine formula for distance calculation
+            double R = 6371; // Radius of the Earth in kilometers
+            double dLat = Math.toRadians(lat2 - lat1);
+            double dLon = Math.toRadians(lon2 - lon1);
 
-        double a = Math.sin(dLat / 2) * Math.sin(dLat / 2) +
-                Math.cos(Math.toRadians(lat1)) * Math.cos(Math.toRadians(lat2)) *
-                        Math.sin(dLon / 2) * Math.sin(dLon / 2);
+            double a = Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+                    Math.cos(Math.toRadians(lat1)) * Math.cos(Math.toRadians(lat2)) *
+                            Math.sin(dLon / 2) * Math.sin(dLon / 2);
 
-        double c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+            double c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
 
-        // Distance in kilometers
-        return R * c;
+            // Distance in kilometers
+            return R * c;
+        }
     }
 
 

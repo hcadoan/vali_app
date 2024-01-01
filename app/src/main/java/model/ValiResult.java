@@ -4,7 +4,7 @@ public class ValiResult {
 
     private String _id;
     private String name;
-    private double distance;
+    private String distance;
     private boolean isOpenConnect;
     private String deviceId;
     private String longitude;
@@ -30,11 +30,11 @@ public class ValiResult {
         this.name = name;
     }
 
-    public double getDistance() {
+    public String getDistance() {
         return distance;
     }
 
-    public void setDistance(double distance) {
+    public void setDistance(String distance) {
         this.distance = distance;
     }
 

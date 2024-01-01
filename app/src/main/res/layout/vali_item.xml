@@ -44,7 +44,8 @@
                 android:textSize="14sp"
                 android:paddingLeft="8dp"
                 android:paddingRight="8dp"
-                android:text="Coordinates: "/>
+                android:text="Coordinates: "
+                android:textStyle="bold"/>
             <LinearLayout
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
@@ -62,14 +63,15 @@
                     android:textSize="14sp"
                     android:paddingRight="4dp"
                     android:text=","/>
-                <TextView
-                    android:id="@+id/tvLong"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:textSize="14sp"
-                    android:paddingRight="8dp"
-                    android:text="long"/>
             </LinearLayout>
+            <TextView
+                android:id="@+id/tvLong"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:textSize="14sp"
+                android:paddingLeft="8dp"
+                android:paddingRight="8dp"
+                android:text="long"/>
         </LinearLayout>
         <LinearLayout
             android:layout_width="match_parent"
@@ -81,7 +83,8 @@
                 android:textSize="14sp"
                 android:paddingLeft="8dp"
                 android:paddingRight="8dp"
-                android:text="Distance: "/>
+                android:text="Distance: "
+                android:textStyle="bold"/>
             <TextView
                 android:id="@+id/tvDistance"
                 android:layout_width="wrap_content"
@@ -89,12 +92,6 @@
                 android:textSize="14sp"
                 android:paddingRight="3dp"
                 android:text="Distance"/>
-            <TextView
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:textSize="14sp"
-                android:paddingRight="8dp"
-                android:text="KM"/>
         </LinearLayout>
     </LinearLayout>
 

@@ -28,7 +28,10 @@ import com.google.android.gms.tasks.Task;
 
 import org.json.JSONObject;
 
+import java.text.DecimalFormat;
+import java.text.DecimalFormatSymbols;
 import java.util.ArrayList;
+import java.util.Locale;
 
 import SocketIO.SocketIO;
 import io.socket.client.Socket;
@@ -52,7 +55,7 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
     Socket socket;
 
     TextView tvname, tvLat, tvLong, tvDistance;
-    double distance;
+    String distance;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -73,14 +76,17 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
         Intent intent = getIntent();
         vali_id = intent.getStringExtra("valiId");
         String name = intent.getStringExtra("valiName");
-        distance = intent.getDoubleExtra("valiDistance", 0.0);
+        distance = intent.getStringExtra("valiDistance");
         latitude = intent.getDoubleExtra("latitude", 0.0);
         longitude = intent.getDoubleExtra("longitude", 0.0);
+        String dmslatitude = intent.getStringExtra("dmslatitude");
+        String dmslongitude = intent.getStringExtra("dmslongitude");
+
 
         tvname.setText(name);
-        tvLat.setText(String.valueOf(latitude));
-        tvLong.setText(String.valueOf(longitude));
-        tvDistance.setText(String.valueOf(distance));
+        tvLat.setText(dmslatitude);
+        tvLong.setText(dmslongitude);
+        tvDistance.setText(distance);
 
         //socket
         socketIO = new SocketIO();
@@ -102,15 +108,34 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
                                 // If it matches, get the lat and long values
                                 latitude = jsonObject.optDouble("latitude", 0.0);
                                 longitude = jsonObject.optDouble("longitude", 0.0);
+
+                                String dmsLatitude = convertToDMS(latitude, true);
+                                String dmsLongitude = convertToDMS(longitude, false);
                                 // Update the marker on the map
                                 updateMapMarker(latitude, longitude);
 
-                                Double distance = calculateDistance(currentLocation.getLatitude(), currentLocation.getLongitude(), latitude, longitude);
-                                int roundedDistance = (int) Math.round(distance);
+                                Double distance;
+                                String distanceUnit;
+                                if(currentLocation != null) {
+                                    distance = calculateDistance(currentLocation.getLatitude(), currentLocation.getLongitude(), latitude, longitude);
+                                    if (distance >= 1) {
+                                        // Khi khoảng cách lớn hơn hoặc bằng 1 km, hiển thị trong đơn vị ki-lô-mét
+                                        distanceUnit = " km";
+                                    } else {
+                                        // Khi khoảng cách nhỏ hơn 1 km, hiển thị trong đơn vị mét
+                                        distanceUnit = " m";
+                                        distance = distance * 1000;
+                                    }
+                                } else {
+                                    distance = 0.0;
+                                    distanceUnit = " km";
+                                }
 
-                                tvLat.setText(String.valueOf(latitude));
-                                tvLong.setText(String.valueOf(longitude));
-                                tvDistance.setText(String.valueOf(roundedDistance));
+                                String formattedDistance = String.format(Locale.US, "%.2f%s", distance, distanceUnit);
+
+                                tvLat.setText(dmsLatitude);
+                                tvLong.setText(dmsLongitude);
+                                tvDistance.setText(formattedDistance);
                             }
                             Log.d("MapsRealtime", "lat: " + latitude.toString());
                             Log.d("MapsRealtime", "long: " + longitude.toString());
@@ -126,6 +151,24 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
                 });
             }
         });
+    }
+
+    private static String convertToDMS(double coordinate, boolean isLatitude) {
+        char direction = isLatitude ? (coordinate >= 0 ? 'N' : 'S') : (coordinate >= 0 ? 'E' : 'W');
+        coordinate = Math.abs(coordinate);
+
+        int degrees = (int) coordinate;
+        double minutesAndSeconds = (coordinate - degrees) * 60;
+
+        int minutes = (int) minutesAndSeconds;
+        double seconds = (minutesAndSeconds - minutes) * 60;
+
+        DecimalFormatSymbols symbols = new DecimalFormatSymbols(Locale.US);
+        DecimalFormat decimalFormat = new DecimalFormat("00.000", symbols);
+
+        String formattedSeconds = decimalFormat.format(seconds);
+
+        return String.format("%d°%02d'%s\"%s", degrees, minutes, formattedSeconds, direction);
     }
 
     private double calculateDistance(double lat1, double lon1, double lat2, double lon2) {
